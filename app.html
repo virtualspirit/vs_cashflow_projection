@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VirtualSpirit × NinjaSuites.ai — Finance Simulator</title>
+  <!-- Minimal, dependency-light styling -->
+  <style>
+    :root { --bg:#0b1020; --card:#10192e; --ink:#e8eefc; --muted:#9fb2d8; --accent:#5aa9ff; --ok:#3ad29f; --warn:#ffb84d; --bad:#ff6b6b; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1020,#0b1020 50%,#0d1430);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    h1,h2,h3{margin:0 0 .5rem}
+    a{color:var(--accent)}
+    .wrap{max-width:1200px;margin:32px auto;padding:0 16px}
+    .grid{display:grid;gap:16px}
+    .g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{background:var(--card);border:1px solid #1b2747;border-radius:18px;padding:16px;box-shadow:0 6px 20px rgba(0,0,0,.28)}
+    label{display:block;margin:.25rem 0;color:var(--muted)}
+    input[type="number"],select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #22325b;background:#0f1730;color:var(--ink)}
+    input[type="range"]{width:100%}
+    .row{display:flex;gap:10px;align-items:center}
+    .row>*{flex:1}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0f1c3a;border:1px solid #203463;color:var(--muted);font-size:12px}
+    .kpi{padding:12px;border-radius:14px;border:1px solid #203463;background:#0f1c3a}
+    .kpi .v{font-weight:700;font-size:20px}
+    .btn{cursor:pointer;background:var(--accent);color:#081024;border:none;padding:10px 14px;border-radius:12px;font-weight:700}
+    .btn.secondary{background:#18264b;color:var(--ink);border:1px solid #2b4485}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px 10px;border-bottom:1px solid #1c2a4f;text-align:right}
+    th:first-child,td:first-child{text-align:left}
+    .help{color:var(--muted);font-size:12px}
+    .flex{display:flex;gap:16px}
+    .right{margin-left:auto}
+    .tag{font-size:11px;border:1px solid #2a3f74;border-radius:999px;padding:4px 8px;color:#c1d4ff}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>VirtualSpirit × NinjaSuites.ai — Finance Simulator</h1>
+    <p class="help">Adjust assumptions below. The simulator projects monthly cashflows for <b>12 months</b> and plots inflow/outflow, cumulative cash, and revenue composition. Defaults come from your notes (tax, SST, CAC, ARPA, loan @ 4%/6y).</p>
+
+    <!-- ASSUMPTIONS -->
+    <div class="grid g-3">
+      <div class="card">
+        <h2>Loan</h2>
+        <label>Loan Amount (RM)
+          <input type="number" id="loanAmount" value="600000" min="0" step="10000">
+        </label>
+        <label>Interest Rate (% p.a.)
+          <input type="number" id="loanRate" value="4" min="0" step="0.01">
+        </label>
+        <label>Tenure (years)
+          <input type="number" id="loanYears" value="6" min="1" step="1">
+        </label>
+        <label>Disbursement Month (1–12)
+          <input type="number" id="loanMonth" value="1" min="1" max="12">
+        </label>
+        <div class="help">Set to 0 to simulate <b>no loan</b>.</div>
+      </div>
+
+      <div class="card">
+        <h2>Outstanding Taxes (Catch-up)</h2>
+        <label>LHDN to settle (RM)
+          <input type="number" id="lhdnTotal" value="200000" min="0" step="1000">
+        </label>
+        <label>LHDN settlement months
+          <input type="number" id="lhdnMonths" value="6" min="1" max="24">
+        </label>
+        <label>SST (Kastam) to settle (RM)
+          <input type="number" id="sstTotal" value="190000" min="0" step="1000">
+        </label>
+        <label>SST instalment months
+          <input type="number" id="sstMonths" value="12" min="1" max="36">
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>Ongoing Taxes</h2>
+        <label>Corporate Tax on Profit (%)
+          <input type="number" id="corpTaxPct" value="18" min="0" step="0.1">
+        </label>
+        <label>SST Rate on Taxable Revenue (%)
+          <input type="number" id="sstPct" value="8" min="0" step="0.1">
+        </label>
+        <label>Taxable Revenue Share (Agency %) <span class="pill">assume portion of agency revenue</span>
+          <input type="number" id="taxableSharePct" value="80" min="0" max="100" step="1">
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>VirtualSpirit (Agency)</h2>
+        <label>Base Monthly Revenue (RM)
+          <input type="number" id="agencyBaseRev" value="170000" min="0" step="1000">
+        </label>
+        <label>Monthly Expenses (Ops) (RM)
+          <input type="number" id="agencyOps" value="175000" min="0" step="1000">
+        </label>
+        <div class="row">
+          <label>Project Amount (RM)
+            <input type="number" id="projectAmt" value="200000" min="0" step="10000">
+          </label>
+          <label>Project Frequency (months)
+            <input type="number" id="projectFreq" value="3" min="1" step="1">
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>NinjaSuites (SaaS)</h2>
+        <div class="row">
+          <label>Monthly Marketing Budget (RM)
+            <input type="number" id="mktBudget" value="10000" min="0" step="500">
+          </label>
+          <label>CAC (RM per customer)
+            <input type="number" id="cac" value="500" min="1" step="10">
+          </label>
+        </div>
+        <div class="row">
+          <label>Annual Plan (RM)
+            <input type="number" id="arpaYear" value="3000" min="0" step="50">
+          </label>
+          <label>Churn Rate (% / month)
+            <input type="number" id="churnPct" value="2" min="0" step="0.1">
+          </label>
+        </div>
+        <label>Initial Customers
+          <input type="number" id="initialCustomers" value="0" min="0" step="1">
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>General</h2>
+        <div class="row">
+          <label>Projection Months
+            <input type="number" id="months" value="12" min="3" max="36">
+          </label>
+          <label>Starting Cash (RM)
+            <input type="number" id="startingCash" value="20000" min="0" step="1000">
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn" id="runBtn">Run Projection</button>
+          <button class="btn secondary" id="csvBtn">Download CSV</button>
+        </div>
+        <p class="help">Tip: set <span class="tag">Loan Amount=0</span> to see a baseline without financing.</p>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid g-3" style="margin-top:16px">
+      <div class="kpi"><div class="t">Total Inflow</div><div class="v" id="kpiIn">RM 0</div></div>
+      <div class="kpi"><div class="t">Total Outflow</div><div class="v" id="kpiOut">RM 0</div></div>
+      <div class="kpi"><div class="t">Ending Cash</div><div class="v" id="kpiCash">RM 0</div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="grid g-2" style="margin-top:16px">
+      <div class="card"><h2>Cashflow (In vs Out)</h2><canvas id="barChart" height="140"></canvas></div>
+      <div class="card"><h2>Cumulative Cash</h2><canvas id="lineChart" height="140"></canvas></div>
+      <div class="card"><h2>Revenue Composition</h2><canvas id="stackedChart" height="160"></canvas></div>
+      <div class="card"><h2>Expense Breakdown</h2><canvas id="pieChart" height="160"></canvas></div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card" style="margin-top:16px">
+      <div class="flex">
+        <h2>Monthly Projection Table</h2>
+        <span class="right pill">All values in RM</span>
+      </div>
+      <div style="overflow:auto;max-height:480px">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Agency Rev</th>
+              <th>Project Rev</th>
+              <th>SaaS Rev</th>
+              <th>Total In</th>
+              <th>Ops</th>
+              <th>Mktg</th>
+              <th>Loan Repay</th>
+              <th>LHDN (catch-up)</th>
+              <th>SST (catch-up)</th>
+              <th>Ongoing SST</th>
+              <th>Corp Tax</th>
+              <th>Total Out</th>
+              <th>Net</th>
+              <th>Cumulative Cash</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ---------- Helpers ----------
+    const fmt = n => n.toLocaleString('en-MY',{maximumFractionDigits:0});
+    const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+
+    function amortizeMonthly(P, annualRate, years){
+      if(!P) return 0;
+      const r = annualRate/100/12; const n = years*12;
+      if(r===0) return P/n;
+      return P * (r*Math.pow(1+r,n)) / (Math.pow(1+r,n)-1);
+    }
+
+    function buildMonths(n){
+      const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const now = new Date();
+      const out=[]; let m=now.getMonth(); let y=now.getFullYear();
+      for(let i=0;i<n;i++){
+        out.push(names[(m+i)%12]+'-'+String(y + Math.floor((m+i)/12)));
+      }
+      return out;
+    }
+
+    // ---------- Core Simulation ----------
+    function simulate(){
+      // Inputs
+      const months = clamp(parseInt(document.getElementById('months').value||12),3,36);
+      const startCash = +document.getElementById('startingCash').value||0;
+
+      // Loan
+      const loanAmt = +document.getElementById('loanAmount').value||0;
+      const loanRate = +document.getElementById('loanRate').value||0;
+      const loanYears = +document.getElementById('loanYears').value||6;
+      const loanMonth = clamp(parseInt(document.getElementById('loanMonth').value||1),0,12);
+      const loanRepay = amortizeMonthly(loanAmt, loanRate, loanYears);
+
+      // Catch-up taxes
+      const lhdnTotal = +document.getElementById('lhdnTotal').value||0;
+      const lhdnMonths = +document.getElementById('lhdnMonths').value||6;
+      const sstTotal = +document.getElementById('sstTotal').value||0;
+      const sstMonths = +document.getElementById('sstMonths').value||12;
+
+      // Ongoing taxes
+      const corpTaxPct = +document.getElementById('corpTaxPct').value||0;
+      const sstPct = +document.getElementById('sstPct').value||0;
+      const taxableSharePct = (+document.getElementById('taxableSharePct').value||0)/100;
+
+      // Agency
+      const agencyBase = +document.getElementById('agencyBaseRev').value||0;
+      const agencyOps = +document.getElementById('agencyOps').value||0;
+      const projectAmt = +document.getElementById('projectAmt').value||0;
+      const projectFreq = clamp(parseInt(document.getElementById('projectFreq').value||3),1,36);
+
+      // SaaS
+      const mktBudget = +document.getElementById('mktBudget').value||0;
+      const cac = Math.max(1, +document.getElementById('cac').value||500);
+      const arpaYear = +document.getElementById('arpaYear').value||3000;
+      const churn = (+document.getElementById('churnPct').value||0)/100;
+      let customers = +document.getElementById('initialCustomers').value||0;
+
+      // Containers
+      const labels = buildMonths(months);
+      const rows=[];
+      let cumCash = startCash;
+      let lhdnLeft = lhdnTotal;
+      let sstLeft = sstTotal;
+
+      let totalIn=0,totalOut=0;
+
+      for(let i=0;i<months;i++){
+        const monthIndex = i+1;
+
+        // Revenues
+        const agencyProject = (projectFreq>0 && monthIndex%projectFreq===0) ? projectAmt : 0;
+        const agencyRevenue = agencyBase; // base retainer
+
+        // SaaS new customers and churn
+        const newCustomers = Math.floor(mktBudget / cac);
+        customers = Math.max(0, customers + newCustomers - Math.round(customers*churn));
+        const mrr = customers * (arpaYear/12);
+
+        const inflow = agencyRevenue + agencyProject + mrr + ((loanAmt>0 && monthIndex===loanMonth)?loanAmt:0);
+
+        // Taxes
+        const ongoingSST = (agencyRevenue + agencyProject) * taxableSharePct * (sstPct/100);
+
+        // Profit estimate BEFORE corporate tax: inflow - core ops - marketing - loan repay - catch-up tax this month - SST ongoing (since it is expense-like pass-through)
+        const lhdnThis = (lhdnLeft>0) ? Math.min(lhdnLeft, lhdnTotal/lhdnMonths) : 0;
+        lhdnLeft = Math.max(0, lhdnLeft - lhdnThis);
+        const sstThis = (sstLeft>0) ? Math.min(sstLeft, sstTotal/sstMonths) : 0;
+        sstLeft = Math.max(0, sstLeft - sstThis);
+
+        const loanThis = (loanAmt>0 && monthIndex>=loanMonth) ? loanRepay : 0;
+        const marketing = mktBudget;
+        const ops = agencyOps;
+
+        const preTaxProfit = inflow - (ops + marketing + loanThis + lhdnThis + sstThis + ongoingSST);
+        const corpTax = preTaxProfit>0 ? preTaxProfit * (corpTaxPct/100) : 0;
+
+        const outflow = ops + marketing + loanThis + lhdnThis + sstThis + ongoingSST + corpTax;
+        const net = inflow - outflow;
+        cumCash += net;
+
+        totalIn += inflow; totalOut += outflow;
+
+        rows.push({
+          label: labels[i], agencyRevenue, agencyProject, mrr, inflow,
+          ops, marketing, loanThis, lhdnThis, sstThis, ongoingSST, corpTax,
+          outflow, net, cumCash
+        });
+      }
+
+      return { labels, rows, totals:{in:totalIn,out:totalOut, cash:rows.at(-1)?.cumCash??startCash} };
+    }
+
+    // ---------- Rendering ----------
+    let barChart,lineChart,stackedChart,pieChart;
+
+    function render(){
+      const res = simulate();
+      const labels = res.labels;
+      const inflows = res.rows.map(r=>r.inflow);
+      const outflows = res.rows.map(r=>r.outflow);
+      const cum = res.rows.map(r=>r.cumCash);
+      const agency = res.rows.map(r=>r.agencyRevenue + r.agencyProject);
+      const saas = res.rows.map(r=>r.mrr);
+
+      // KPIs
+      document.getElementById('kpiIn').textContent = 'RM '+fmt(res.totals.in);
+      document.getElementById('kpiOut').textContent = 'RM '+fmt(res.totals.out);
+      document.getElementById('kpiCash').textContent = 'RM '+fmt(res.totals.cash);
+
+      // Table
+      const tbody = document.querySelector('#tbl tbody');
+      tbody.innerHTML = res.rows.map(r=>`
+        <tr>
+          <td>${r.label}</td>
+          <td>${fmt(r.agencyRevenue)}</td>
+          <td>${fmt(r.agencyProject)}</td>
+          <td>${fmt(r.mrr)}</td>
+          <td>${fmt(r.inflow)}</td>
+          <td>${fmt(r.ops)}</td>
+          <td>${fmt(r.marketing)}</td>
+          <td>${fmt(r.loanThis)}</td>
+          <td>${fmt(r.lhdnThis)}</td>
+          <td>${fmt(r.sstThis)}</td>
+          <td>${fmt(r.ongoingSST)}</td>
+          <td>${fmt(r.corpTax)}</td>
+          <td>${fmt(r.outflow)}</td>
+          <td style="color:${r.net>=0?'#3ad29f':'#ff6b6b'}">${fmt(r.net)}</td>
+          <td>${fmt(r.cumCash)}</td>
+        </tr>`).join('');
+
+      // Charts
+      const barCtx = document.getElementById('barChart');
+      const lineCtx = document.getElementById('lineChart');
+      const stackedCtx = document.getElementById('stackedChart');
+      const pieCtx = document.getElementById('pieChart');
+
+      barChart && barChart.destroy();
+      lineChart && lineChart.destroy();
+      stackedChart && stackedChart.destroy();
+      pieChart && pieChart.destroy();
+
+      barChart = new Chart(barCtx,{type:'bar',data:{labels,datasets:[
+        {label:'Inflow', data:inflows},
+        {label:'Outflow', data:outflows}
+      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{ticks:{color:'#c1d4ff'}},y:{ticks:{color:'#c1d4ff'}}}}});
+
+      lineChart = new Chart(lineCtx,{type:'line',data:{labels,datasets:[
+        {label:'Cumulative Cash', data:cum}
+      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{ticks:{color:'#c1d4ff'}},y:{ticks:{color:'#c1d4ff'}}}}});
+
+      stackedChart = new Chart(stackedCtx,{type:'bar',data:{labels,datasets:[
+        {label:'Agency', data:agency, stack:'rev'},
+        {label:'SaaS', data:saas, stack:'rev'}
+      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{stacked:true,ticks:{color:'#c1d4ff'}},y:{stacked:true,ticks:{color:'#c1d4ff'}}}}});
+
+      // Expense breakdown (latest month)
+      const last = res.rows.at(-1) || {};
+      pieChart = new Chart(pieCtx,{type:'pie',data:{labels:['Ops','Marketing','Loan','LHDN (catch-up)','SST (catch-up)','Ongoing SST','Corp Tax'],datasets:[{data:[last.ops,last.marketing,last.loanThis,last.lhdnThis,last.sstThis,last.ongoingSST,last.corpTax]}]},options:{plugins:{legend:{labels:{color:'#e8eefc'}}}}});
+
+      // CSV Download
+      const csvBtn = document.getElementById('csvBtn');
+      csvBtn.onclick = () => downloadCSV(res);
+    }
+
+    function downloadCSV(res){
+      const headers = ['Month','Agency Rev','Project Rev','SaaS Rev','Total In','Ops','Marketing','Loan Repay','LHDN Catch-up','SST Catch-up','Ongoing SST','Corp Tax','Total Out','Net','Cumulative Cash'];
+      const lines = [headers.join(',')].concat(res.rows.map(r=>[
+        r.label,r.agencyRevenue,r.agencyProject,r.mrr,r.inflow,r.ops,r.marketing,r.loanThis,r.lhdnThis,r.sstThis,r.ongoingSST,r.corpTax,r.outflow,r.net,r.cumCash
+      ].join(',')));
+      const blob = new Blob([lines.join('\n')],{type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href=url; a.download='finance_simulation.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('runBtn').addEventListener('click',render);
+
+    // Auto-run first render
+    render();
+  </script>
+</body>
+</html>
