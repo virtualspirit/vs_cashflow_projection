@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VirtualSpirit × NinjaSuites.ai — Finance Simulator</title>
-  <!-- Minimal, dependency-light styling -->
+  <title>VirtualSpirit × NinjaSuites.ai — Finance Simulator (v5.0 Bank‑Ready)</title>
   <style>
     :root { --bg:#0b1020; --card:#10192e; --ink:#e8eefc; --muted:#9fb2d8; --accent:#5aa9ff; --ok:#3ad29f; --warn:#ffb84d; --bad:#ff6b6b; }
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,#0b1020,#0b1020 50%,#0d1430);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
     h1,h2,h3{margin:0 0 .5rem}
     a{color:var(--accent)}
-    .wrap{max-width:1200px;margin:32px auto;padding:0 16px}
+    .wrap{max-width:1320px;margin:32px auto;padding:0 16px}
     .grid{display:grid;gap:16px}
     .g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
     .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .g-4{grid-template-columns:repeat(4,minmax(0,1fr))}
     .card{background:var(--card);border:1px solid #1b2747;border-radius:18px;padding:16px;box-shadow:0 6px 20px rgba(0,0,0,.28)}
-    label{display:block;margin:.25rem 0;color:var(--muted)}
-    input[type="number"],select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #22325b;background:#0f1730;color:var(--ink)}
-    input[type="range"]{width:100%}
+    label{display:block;margin:.35rem 0;color:var(--muted)}
+    input[type="number"],input[type="text"],select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #22325b;background:#0f1730;color:var(--ink)}
+    input[type="checkbox"]{transform:scale(1.15)}
     .row{display:flex;gap:10px;align-items:center}
     .row>*{flex:1}
     .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0f1c3a;border:1px solid #203463;color:var(--muted);font-size:12px}
@@ -30,79 +30,113 @@
     th,td{padding:8px 10px;border-bottom:1px solid #1c2a4f;text-align:right}
     th:first-child,td:first-child{text-align:left}
     .help{color:var(--muted);font-size:12px}
-    .flex{display:flex;gap:16px}
+    .flex{display:flex;gap:16px;align-items:center}
     .right{margin-left:auto}
-    .tag{font-size:11px;border:1px solid #2a3f74;border-radius:999px;padding:4px 8px;color:#c1d4ff}
+    .ib{display:inline-block;margin-left:6px;cursor:help;background:#0f1c3a;border:1px solid #203463;color:#cbe0ff;border-radius:999px;padding:0 6px;font-size:11px;line-height:18px}
+    .meter{height:10px;background:#0f1c3a;border:1px solid #203463;border-radius:999px;overflow:hidden}
+    .bar{height:100%;background:linear-gradient(90deg,#ff6b6b,#ffb84d,#3ad29f);width:0%}
+    #testlog{white-space:pre-wrap;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;color:#cfe3ff}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
 </head>
 <body>
   <div class="wrap">
-    <h1>VirtualSpirit × NinjaSuites.ai — Finance Simulator</h1>
-    <p class="help">Adjust assumptions below. The simulator projects monthly cashflows for <b>12 months</b> and plots inflow/outflow, cumulative cash, and revenue composition. Defaults come from your notes (tax, SST, CAC, ARPA, loan @ 4%/6y).</p>
+    <h1>VirtualSpirit × NinjaSuites.ai — Finance Simulator <span class="pill">v5.0 Bank‑Ready</span></h1>
+    <p class="help">v5 merges growth + cashflow + **loan metrics**: DSCR, ICR, readiness checklist, collateral coverage, and a bank‑summary export. All inputs persist in localStorage.</p>
 
-    <!-- ASSUMPTIONS -->
     <div class="grid g-3">
       <div class="card">
         <h2>Loan</h2>
-        <label>Loan Amount (RM)
-          <input type="number" id="loanAmount" value="600000" min="0" step="10000">
+        <label>Loan Amount (RM) <span class="ib" title="Target RM600k–RM800k.">ⓘ</span>
+          <input type="number" id="loanAmount" value="800000" min="0" step="10000">
         </label>
-        <label>Interest Rate (% p.a.)
+        <label>Interest Rate (% p.a.) <span class="ib" title="Annual fixed rate for amortization.">ⓘ</span>
           <input type="number" id="loanRate" value="4" min="0" step="0.01">
         </label>
-        <label>Tenure (years)
+        <label>Tenure (years) <span class="ib" title="Loan term.">ⓘ</span>
           <input type="number" id="loanYears" value="6" min="1" step="1">
         </label>
-        <label>Disbursement Month (1–12)
-          <input type="number" id="loanMonth" value="1" min="1" max="12">
+        <label>Disbursement Month (1–12) <span class="ib" title="Month when cash hits bank.">ⓘ</span>
+          <input type="number" id="loanMonth" value="2" min="1" max="12">
         </label>
-        <div class="help">Set to 0 to simulate <b>no loan</b>.</div>
+        <label>Processing Fee (% of loan, one‑off) <span class="ib" title="Deducted from cash disbursed; interest charged on full principal.">ⓘ</span>
+          <input type="number" id="loanFeePct" value="5" min="0" step="0.1">
+        </label>
+        <div class="row">
+          <label>Collateral Value (RM) <span class="ib" title="Property/FD pledged. Used for collateral coverage ratio.">ⓘ</span>
+            <input type="number" id="collateralValue" value="800000" min="0" step="10000">
+          </label>
+          <label>Book Equity (RM) <span class="ib" title="Shareholders' funds. Used for leverage ratio.">ⓘ</span>
+            <input type="number" id="bookEquity" value="600000" min="0" step="10000">
+          </label>
+        </div>
       </div>
 
       <div class="card">
-        <h2>Outstanding Taxes (Catch-up)</h2>
-        <label>LHDN to settle (RM)
+        <h2>Outstanding Taxes (Catch‑up)</h2>
+        <label>LHDN to settle (RM) <span class="ib" title="Income tax & penalties to clear via monthly plan.">ⓘ</span>
           <input type="number" id="lhdnTotal" value="200000" min="0" step="1000">
         </label>
-        <label>LHDN settlement months
+        <label>LHDN settlement months <span class="ib" title="Number of months to settle LHDN outstanding.">ⓘ</span>
           <input type="number" id="lhdnMonths" value="6" min="1" max="24">
         </label>
-        <label>SST (Kastam) to settle (RM)
+        <label>SST (Kastam) to settle (RM) <span class="ib" title="Outstanding service tax + penalties to Customs.">ⓘ</span>
           <input type="number" id="sstTotal" value="190000" min="0" step="1000">
         </label>
-        <label>SST instalment months
+        <label>SST instalment months <span class="ib" title="Number of months to settle SST outstanding.">ⓘ</span>
           <input type="number" id="sstMonths" value="12" min="1" max="36">
         </label>
       </div>
 
       <div class="card">
         <h2>Ongoing Taxes</h2>
-        <label>Corporate Tax on Profit (%)
-          <input type="number" id="corpTaxPct" value="18" min="0" step="0.1">
-        </label>
-        <label>SST Rate on Taxable Revenue (%)
+        <div class="help">SME corporate tax slab: 15% (first RM150k), 17% (next RM450k), 24% (balance).</div>
+        <label>SST Rate on Taxable Services (%) <span class="ib" title="Malaysia service tax (default 8%).">ⓘ</span>
           <input type="number" id="sstPct" value="8" min="0" step="0.1">
         </label>
-        <label>Taxable Revenue Share (Agency %) <span class="pill">assume portion of agency revenue</span>
-          <input type="number" id="taxableSharePct" value="80" min="0" max="100" step="1">
+        <label>Taxable Share of Agency Revenue (%) <span class="ib" title="What % of Agency revenue is SST‑taxable.">ⓘ</span>
+          <input type="number" id="taxableSharePct" value="100" min="0" max="100" step="1">
         </label>
       </div>
 
       <div class="card">
         <h2>VirtualSpirit (Agency)</h2>
-        <label>Base Monthly Revenue (RM)
-          <input type="number" id="agencyBaseRev" value="170000" min="0" step="1000">
+        <label>Base Retainer Revenue (RM/mo) <span class="ib" title="Stable retainers each month.">ⓘ</span>
+          <input type="number" id="agencyBaseRev" value="150000" min="0" step="1000">
         </label>
-        <label>Monthly Expenses (Ops) (RM)
+        <label>Monthly Ops (fixed) (RM) <span class="ib" title="Payroll + infra baseline.">ⓘ</span>
           <input type="number" id="agencyOps" value="175000" min="0" step="1000">
         </label>
         <div class="row">
-          <label>Project Amount (RM)
+          <label>Marketing Budget (RM/mo) <span class="ib" title="5k ≈ RM200k/quarter pipeline after lag.">ⓘ</span>
+            <input type="number" id="agencyMkt" value="5000" min="0" step="500">
+          </label>
+          <label>Conversion Lag (months) <span class="ib" title="Delay between marketing and project start (≈6 weeks = 2 months).">ⓘ</span>
+            <input type="number" id="agencyLag" value="2" min="0" step="1">
+          </label>
+        </div>
+        <div class="row">
+          <label>Project Ticket (RM) <span class="ib" title="Typical fixed‑price project size.">ⓘ</span>
             <input type="number" id="projectAmt" value="200000" min="0" step="10000">
           </label>
-          <label>Project Frequency (months)
-            <input type="number" id="projectFreq" value="3" min="1" step="1">
+          <label>Max Concurrent New Projects / month <span class="ib" title="Capacity limit for new starts.">ⓘ</span>
+            <input type="number" id="maxProjects" value="2" min="0" step="1">
+          </label>
+        </div>
+        <div class="row">
+          <label>Target Net Margin on Project (%) <span class="ib" title="Simulator adds variable ops so net ≈ this margin.">ⓘ</span>
+            <input type="number" id="projNetMargin" value="10" min="0" step="0.1">
+          </label>
+          <label>Monthly Revenue Cap (RM) <span class="ib" title="Total Agency revenue cap per month.">ⓘ</span>
+            <input type="number" id="agencyCap" value="300000" min="0" step="10000">
+          </label>
+        </div>
+        <div class="row">
+          <label>Milestone % (5 payments) <span class="ib" title="e.g. 25,25,20,25,5 — paid over 6 months with one gap.">ⓘ</span>
+            <input type="text" id="milestones" value="25,25,20,25,5">
+          </label>
+          <label>Gap Month (1–6) <span class="ib" title="Which month is the 0% gap.">ⓘ</span>
+            <input type="number" id="gapMonth" value="6" min="1" max="6">
           </label>
         </div>
       </div>
@@ -110,20 +144,59 @@
       <div class="card">
         <h2>NinjaSuites (SaaS)</h2>
         <div class="row">
-          <label>Monthly Marketing Budget (RM)
-            <input type="number" id="mktBudget" value="10000" min="0" step="500">
+          <label>Marketing Budget (RM/mo)
+            <input type="number" id="saasMkt" value="8000" min="0" step="500">
           </label>
           <label>CAC (RM per customer)
-            <input type="number" id="cac" value="500" min="1" step="10">
+            <input type="number" id="saasCAC" value="600" min="1" step="10">
           </label>
         </div>
         <div class="row">
-          <label>Annual Plan (RM)
-            <input type="number" id="arpaYear" value="3000" min="0" step="50">
+          <label>Conversion Lag (months)
+            <input type="number" id="saasLag" value="2" min="0" step="1">
           </label>
-          <label>Churn Rate (% / month)
+          <label>Churn Rate (%/mo)
             <input type="number" id="churnPct" value="2" min="0" step="0.1">
           </label>
+        </div>
+        <div class="row">
+          <label>Annual Plan (RM, ARPA)
+            <input type="number" id="arpaYear" value="3000" min="0" step="50">
+          </label>
+          <label>Commission on SaaS Cash (%)
+            <input type="number" id="saasCommissionPct" value="20" min="0" step="0.1">
+          </label>
+        </div>
+        <div class="row">
+          <label>Organic Growth % / month
+            <input type="number" id="saasGrowthPct" value="5" min="0" step="0.1">
+          </label>
+          <label>Marketing Efficiency Gain % / quarter
+            <input type="number" id="saasEffPct" value="10" min="0" step="0.1">
+          </label>
+        </div>
+        <h3 style="margin-top:8px">SaaS Demos</h3>
+        <div class="row">
+          <label>Demos Booked / month
+            <input type="number" id="saasDemos" value="20" min="0" step="1">
+          </label>
+          <label>Show Rate (%)
+            <input type="number" id="saasShowPct" value="70" min="0" step="0.1">
+          </label>
+        </div>
+        <div class="row">
+          <label>Demo ➜ Paid Conversion (%)
+            <input type="number" id="saasDemoConvPct" value="25" min="0" step="0.1">
+          </label>
+          <label>Demo Lag (months)
+            <input type="number" id="saasDemoLag" value="1" min="0" step="1">
+          </label>
+        </div>
+        <div class="row">
+          <label>Cost per Demo (RM)
+            <input type="number" id="saasDemoCost" value="80" min="0" step="10">
+          </label>
+          <label>Use Demos to <select id="saasDemoMode"><option value="add">Add on top</option><option value="replace">Replace marketing adds</option></select></label>
         </div>
         <label>Initial Customers
           <input type="number" id="initialCustomers" value="0" min="0" step="1">
@@ -131,63 +204,97 @@
       </div>
 
       <div class="card">
-        <h2>General</h2>
+        <h2>Working Capital & Controls</h2>
         <div class="row">
+          <label>Receivables Days – Agency (AR)
+            <input type="number" id="arDaysAgency" value="30" min="0" step="1">
+          </label>
+          <label>Receivables Days – SaaS (AR)
+            <input type="number" id="arDaysSaaS" value="0" min="0" step="1">
+          </label>
+        </div>
+        <div class="row">
+          <label>Payables Days (AP)
+            <input type="number" id="apDays" value="30" min="0" step="1">
+          </label>
           <label>Projection Months
             <input type="number" id="months" value="12" min="3" max="36">
           </label>
+        </div>
+        <div class="row">
           <label>Starting Cash (RM)
             <input type="number" id="startingCash" value="20000" min="0" step="1000">
           </label>
+          <label>Revenue Composition Mode
+            <select id="revMode"><option value="accrual" selected>Revenue (Accrual)</option><option value="cash">Cash In</option></select>
+          </label>
         </div>
-        <div class="row">
+        <div class="row" style="gap:8px;align-items:end">
           <button class="btn" id="runBtn">Run Projection</button>
           <button class="btn secondary" id="csvBtn">Download CSV</button>
+          <button class="btn secondary" id="resetBtn" title="Clear saved inputs in this browser.">Reset Inputs</button>
         </div>
-        <p class="help">Tip: set <span class="tag">Loan Amount=0</span> to see a baseline without financing.</p>
       </div>
     </div>
 
-    <!-- KPIs -->
-    <div class="grid g-3" style="margin-top:16px">
-      <div class="kpi"><div class="t">Total Inflow</div><div class="v" id="kpiIn">RM 0</div></div>
-      <div class="kpi"><div class="t">Total Outflow</div><div class="v" id="kpiOut">RM 0</div></div>
-      <div class="kpi"><div class="t">Ending Cash</div><div class="v" id="kpiCash">RM 0</div></div>
+    <div class="grid g-4" style="margin-top:16px">
+      <div class="kpi"><div class="t">Total <b>Cash In</b></div><div class="v" id="kpiIn">RM 0</div></div>
+      <div class="kpi"><div class="t">Total <b>Cash Out</b></div><div class="v" id="kpiOut">RM 0</div></div>
+      <div class="kpi"><div class="t"><b>Ending Cash</b></div><div class="v" id="kpiCash">RM 0</div></div>
+      <div class="kpi"><div class="t"><b>DSCR (avg)</b></div><div class="v" id="kpiDSCR">–</div></div>
     </div>
 
-    <!-- CHARTS -->
     <div class="grid g-2" style="margin-top:16px">
       <div class="card"><h2>Cashflow (In vs Out)</h2><canvas id="barChart" height="140"></canvas></div>
       <div class="card"><h2>Cumulative Cash</h2><canvas id="lineChart" height="140"></canvas></div>
       <div class="card"><h2>Revenue Composition</h2><canvas id="stackedChart" height="160"></canvas></div>
       <div class="card"><h2>Expense Breakdown</h2><canvas id="pieChart" height="160"></canvas></div>
+      <div class="card"><h2>DSCR Trend (Target 1.2)</h2><canvas id="dscrChart" height="160"></canvas></div>
+      <div class="card"><h2>Loan Readiness</h2>
+        <div class="grid g-2">
+          <label><input type="checkbox" id="chkAudited"> Audited Accounts (last 3 yrs)</label>
+          <label><input type="checkbox" id="chkTaxPlan"> Formal Tax Repayment Plan</label>
+          <label><input type="checkbox" id="chkPosCF"> Positive Cashflow ≥ 3 months</label>
+          <label><input type="checkbox" id="chkCCRIS"> Clean CCRIS / CTOS</label>
+          <label><input type="checkbox" id="chkCollateral"> Collateral / Guarantee Provided</label>
+          <label><input type="checkbox" id="chkPlan"> Business Plan + Forecast Prepared</label>
+          <label><input type="checkbox" id="chkCGC"> CGC / SJPP Guarantee</label>
+        </div>
+        <div class="help" style="margin-top:6px">Score adds 5 pts per tick (max 35). Aim ≥ 85%.</div>
+        <div class="meter" style="margin:8px 0 6px"><div id="readinessBar" class="bar"></div></div>
+        <div class="flex"><div id="readinessText" class="pill">Readiness: 0%</div><div id="readinessVerdict" class="right pill">–</div></div>
+      </div>
     </div>
 
-    <!-- TABLE -->
     <div class="card" style="margin-top:16px">
-      <div class="flex">
-        <h2>Monthly Projection Table</h2>
-        <span class="right pill">All values in RM</span>
-      </div>
-      <div style="overflow:auto;max-height:480px">
+      <div class="flex"><h2>Monthly Projection Table</h2><span class="right pill">All values in RM (cash basis with AR/AP lags)</span></div>
+      <div style="overflow:auto;max-height:520px">
         <table id="tbl">
           <thead>
             <tr>
               <th>Month</th>
-              <th>Agency Rev</th>
-              <th>Project Rev</th>
-              <th>SaaS Rev</th>
-              <th>Total In</th>
+              <th>Agency Retainer</th>
+              <th>Agency Projects</th>
+              <th>SaaS (recognized)</th>
+              <th>Agency Cash In</th>
+              <th>SaaS Cash In</th>
+              <th>Loan Cash</th>
+              <th>Total Cash In</th>
               <th>Ops</th>
-              <th>Mktg</th>
+              <th>Agency Mkt</th>
+              <th>SaaS Mkt</th>
+              <th>SaaS Demo Costs</th>
+              <th>SaaS Commission</th>
               <th>Loan Repay</th>
-              <th>LHDN (catch-up)</th>
-              <th>SST (catch-up)</th>
+              <th>LHDN Catch-up</th>
+              <th>SST Catch-up</th>
               <th>Ongoing SST</th>
-              <th>Corp Tax</th>
-              <th>Total Out</th>
+              <th>Corp Tax (accrual)</th>
+              <th>Total Cash Out</th>
               <th>Net</th>
               <th>Cumulative Cash</th>
+              <th>DSCR</th>
+              <th>ICR</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -195,209 +302,252 @@
       </div>
     </div>
 
+    <details>
+      <summary>Diagnostics & Tests</summary>
+      <pre id="testlog"></pre>
+    </details>
   </div>
 
   <script>
-    // ---------- Helpers ----------
     const fmt = n => n.toLocaleString('en-MY',{maximumFractionDigits:0});
     const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 
-    function amortizeMonthly(P, annualRate, years){
-      if(!P) return 0;
-      const r = annualRate/100/12; const n = years*12;
-      if(r===0) return P/n;
-      return P * (r*Math.pow(1+r,n)) / (Math.pow(1+r,n)-1);
+    // ---- Persistence ----
+    const FIELDS = [
+      'loanAmount','loanRate','loanYears','loanMonth','loanFeePct','collateralValue','bookEquity',
+      'lhdnTotal','lhdnMonths','sstTotal','sstMonths','sstPct','taxableSharePct',
+      'agencyBaseRev','agencyOps','agencyMkt','agencyLag','projectAmt','maxProjects','projNetMargin','agencyCap','milestones','gapMonth',
+      'saasMkt','saasCAC','saasLag','churnPct','arpaYear','saasCommissionPct','saasGrowthPct','saasEffPct','initialCustomers',
+      'saasDemos','saasShowPct','saasDemoConvPct','saasDemoLag','saasDemoCost','saasDemoMode',
+      'arDaysAgency','arDaysSaaS','apDays','months','startingCash','revMode',
+      'chkAudited','chkTaxPlan','chkPosCF','chkCCRIS','chkCollateral','chkPlan','chkCGC'
+    ];
+    function saveParams(){
+      const obj={}; FIELDS.forEach(id=>{ const el=document.getElementById(id); if(!el) return; obj[id]= (el.type==='checkbox')? el.checked : el.value; });
+      localStorage.setItem('vs_ns_finance_v5', JSON.stringify(obj));
+    }
+    function loadParams(){
+      const raw=localStorage.getItem('vs_ns_finance_v5'); if(!raw) return; try{ const obj=JSON.parse(raw); Object.entries(obj).forEach(([k,v])=>{ const el=document.getElementById(k); if(!el) return; if(el.type==='checkbox') el.checked=!!v; else el.value=v; }); }catch(e){}
     }
 
-    function buildMonths(n){
-      const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const now = new Date();
-      const out=[]; let m=now.getMonth(); let y=now.getFullYear();
-      for(let i=0;i<n;i++){
-        out.push(names[(m+i)%12]+'-'+String(y + Math.floor((m+i)/12)));
-      }
-      return out;
+    function amortizeMonthly(P, annualRate, years){ if(!P) return 0; const r=annualRate/100/12; const n=years*12; return r===0? P/n : P*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1); }
+    function buildMonths(n){ const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const now=new Date(); const out=[]; let m=now.getMonth(), y=now.getFullYear(); for(let i=0;i<n;i++){ out.push(names[(m+i)%12]+'-'+String(y+Math.floor((m+i)/12))); } return out; }
+    function smeTaxAnnual(profit){ if(profit<=0) return 0; let tax=0; const a=Math.min(150000,profit); tax+=a*0.15; if(profit>150000){ const b=Math.min(450000,profit-150000); tax+=b*0.17; if(profit>600000){ tax+=(profit-600000)*0.24; } } return tax; }
+
+    function parseMilestones6(){
+      const txt=document.getElementById('milestones').value||'25,25,20,25,5';
+      const gap=clamp(parseInt(document.getElementById('gapMonth').value||6),1,6)-1; // 0-index
+      let arr=txt.split(',').map(x=>+x.trim()).filter(x=>!isNaN(x));
+      if(arr.length!==5){ arr=[25,25,20,25,5]; }
+      const sum=arr.reduce((a,b)=>a+b,0)||100; const fracs=arr.map(x=>x/sum);
+      const out=new Array(6).fill(0);
+      let j=0; for(let i=0;i<6;i++){ if(i===gap){ out[i]=0; } else { out[i]=fracs[j++]||0; } }
+      return out; // length 6, sums to 1
     }
 
-    // ---------- Core Simulation ----------
     function simulate(){
-      // Inputs
-      const months = clamp(parseInt(document.getElementById('months').value||12),3,36);
-      const startCash = +document.getElementById('startingCash').value||0;
+      const months=clamp(parseInt(document.getElementById('months').value||12),3,36);
+      const startCash=+document.getElementById('startingCash').value||0;
+      const collateral=+document.getElementById('collateralValue').value||0; const equity=+document.getElementById('bookEquity').value||0;
+
+      // AR/AP
+      const arAgency=Math.round((+document.getElementById('arDaysAgency').value||0)/30);
+      const arSaaS=Math.round((+document.getElementById('arDaysSaaS').value||0)/30);
+      const apMonths=Math.round((+document.getElementById('apDays').value||0)/30);
 
       // Loan
-      const loanAmt = +document.getElementById('loanAmount').value||0;
-      const loanRate = +document.getElementById('loanRate').value||0;
-      const loanYears = +document.getElementById('loanYears').value||6;
-      const loanMonth = clamp(parseInt(document.getElementById('loanMonth').value||1),0,12);
-      const loanRepay = amortizeMonthly(loanAmt, loanRate, loanYears);
+      const loanAmt=+document.getElementById('loanAmount').value||0; const loanRate=+document.getElementById('loanRate').value||0; const loanYears=+document.getElementById('loanYears').value||6; const loanMonth=clamp(parseInt(document.getElementById('loanMonth').value||2),1,12); const loanFeePct=(+document.getElementById('loanFeePct').value||0)/100; const repay=amortizeMonthly(loanAmt,loanRate,loanYears);
 
       // Catch-up taxes
-      const lhdnTotal = +document.getElementById('lhdnTotal').value||0;
-      const lhdnMonths = +document.getElementById('lhdnMonths').value||6;
-      const sstTotal = +document.getElementById('sstTotal').value||0;
-      const sstMonths = +document.getElementById('sstMonths').value||12;
+      let lhdnLeft=+document.getElementById('lhdnTotal').value||0; const lhdnMonths=+document.getElementById('lhdnMonths').value||6; const lhdnPer=lhdnMonths>0?lhdnLeft/lhdnMonths:0;
+      let sstLeft=+document.getElementById('sstTotal').value||0; const sstMonths=+document.getElementById('sstMonths').value||12; const sstPer=sstMonths>0?sstLeft/sstMonths:0;
 
       // Ongoing taxes
-      const corpTaxPct = +document.getElementById('corpTaxPct').value||0;
-      const sstPct = +document.getElementById('sstPct').value||0;
-      const taxableSharePct = (+document.getElementById('taxableSharePct').value||0)/100;
+      const sstPct=(+document.getElementById('sstPct').value||8)/100; const taxableShare=(+document.getElementById('taxableSharePct').value||100)/100;
 
-      // Agency
-      const agencyBase = +document.getElementById('agencyBaseRev').value||0;
-      const agencyOps = +document.getElementById('agencyOps').value||0;
-      const projectAmt = +document.getElementById('projectAmt').value||0;
-      const projectFreq = clamp(parseInt(document.getElementById('projectFreq').value||3),1,36);
+      // Agency inputs
+      const agencyBase=+document.getElementById('agencyBaseRev').value||0; const agencyOps=+document.getElementById('agencyOps').value||0; const agencyMkt=+document.getElementById('agencyMkt').value||0; const agencyLag=+document.getElementById('agencyLag').value||2; const projectAmt=+document.getElementById('projectAmt').value||0; const maxProjects=+document.getElementById('maxProjects').value||0; const projNetMargin=(+document.getElementById('projNetMargin').value||10)/100; const agencyCap=+document.getElementById('agencyCap').value||300000;
+      const milestones6=parseMilestones6();
 
-      // SaaS
-      const mktBudget = +document.getElementById('mktBudget').value||0;
-      const cac = Math.max(1, +document.getElementById('cac').value||500);
-      const arpaYear = +document.getElementById('arpaYear').value||3000;
-      const churn = (+document.getElementById('churnPct').value||0)/100;
-      let customers = +document.getElementById('initialCustomers').value||0;
+      // SaaS inputs
+      const saasMkt0=+document.getElementById('saasMkt').value||0; const saasCAC0=Math.max(1,+document.getElementById('saasCAC').value||600); const saasLag=+document.getElementById('saasLag').value||2; const churn=(+document.getElementById('churnPct').value||0)/100; const arpaYear=+document.getElementById('arpaYear').value||3000; const commPct=(+document.getElementById('saasCommissionPct').value||0)/100; const growthPct=(+document.getElementById('saasGrowthPct').value||0)/100; const effPct=(+document.getElementById('saasEffPct').value||0)/100; let customers=+document.getElementById('initialCustomers').value||0;
+      const saasDemos=+document.getElementById('saasDemos').value||0; const showPct=(+document.getElementById('saasShowPct').value||0)/100; const demoConvPct=(+document.getElementById('saasDemoConvPct').value||0)/100; const demoLag=+document.getElementById('saasDemoLag').value||0; const demoCost=+document.getElementById('saasDemoCost').value||0; const demoMode=document.getElementById('saasDemoMode').value||'add';
 
-      // Containers
-      const labels = buildMonths(months);
-      const rows=[];
-      let cumCash = startCash;
-      let lhdnLeft = lhdnTotal;
-      let sstLeft = sstTotal;
+      const labels=buildMonths(months); const rows=[]; let cumCash=startCash; let totalIn=0,totalOut=0; let ytdProfit=0; 
 
-      let totalIn=0,totalOut=0;
+      // Queues for AR/AP per stream
+      const arQAgency=new Array(arAgency).fill(0); const arQSaaS=new Array(arSaaS).fill(0); const apQ=new Array(apMonths).fill(0);
 
+      // Project pipeline based on marketing → quarterly 200k baseline at 5k
+      const quarterlyBase=200000; const baseMkt=5000; const monthlyPipeline = (agencyMkt/baseMkt) * (quarterlyBase/3);
+      const toStart=new Array(months).fill(0);
       for(let i=0;i<months;i++){
-        const monthIndex = i+1;
+        const rawStarts = projectAmt>0 ? (monthlyPipeline / projectAmt) : 0; const idx=i+agencyLag; if(idx<months) toStart[idx]+=rawStarts; }
+      let acc=0; const startsSched=new Array(months).fill(0);
+      for(let m=0;m<months;m++){ acc+=toStart[m]; let can=Math.floor(acc); if(maxProjects>0) can=Math.min(can,maxProjects); startsSched[m]=can; acc-=can; }
 
-        // Revenues
-        const agencyProject = (projectFreq>0 && monthIndex%projectFreq===0) ? projectAmt : 0;
-        const agencyRevenue = agencyBase; // base retainer
+      const active=[]; // active projects with remaining 6-slot schedule
 
-        // SaaS new customers and churn
-        const newCustomers = Math.floor(mktBudget / cac);
-        customers = Math.max(0, customers + newCustomers - Math.round(customers*churn));
-        const mrr = customers * (arpaYear/12);
+      // SaaS growth arrays (lag + efficiency + organic growth + demos)
+      const saasNewPlanned=new Array(months).fill(0); let saasCAC=saasCAC0;
+      for(let m=0;m<months;m++){
+        if(m>0 && m%3===0){ saasCAC = Math.max(1, saasCAC*(1-effPct)); }
+        const baseAdds = Math.floor(saasMkt0 / saasCAC);
+        const growthAdds = Math.floor((customers) * growthPct);
+        const demoHeld = Math.floor(saasDemos * showPct);
+        const demoAdds = Math.floor(demoHeld * demoConvPct);
+        let totalAdds = baseAdds + growthAdds; totalAdds = (demoMode==='replace') ? (demoAdds + growthAdds) : (totalAdds + demoAdds);
+        const idx=m+saasLag+demoLag; if(idx<months) saasNewPlanned[idx]+=Math.max(0,totalAdds);
+      }
 
-        const inflow = agencyRevenue + agencyProject + mrr + ((loanAmt>0 && monthIndex===loanMonth)?loanAmt:0);
+      // Loan amortization tracking for interest/ICR
+      let bal=loanAmt; const r=loanRate/100/12; // interest charged on full principal
 
-        // Taxes
-        const ongoingSST = (agencyRevenue + agencyProject) * taxableSharePct * (sstPct/100);
+      for(let m=0;m<months;m++){
+        // Start agency projects
+        const starts=startsSched[m]||0; for(let s=0;s<starts;s++){ active.push({left:[...milestones6], amount:projectAmt}); }
 
-        // Profit estimate BEFORE corporate tax: inflow - core ops - marketing - loan repay - catch-up tax this month - SST ongoing (since it is expense-like pass-through)
-        const lhdnThis = (lhdnLeft>0) ? Math.min(lhdnLeft, lhdnTotal/lhdnMonths) : 0;
-        lhdnLeft = Math.max(0, lhdnLeft - lhdnThis);
-        const sstThis = (sstLeft>0) ? Math.min(sstLeft, sstTotal/sstMonths) : 0;
-        sstLeft = Math.max(0, sstLeft - sstThis);
+        // Agency accrual revenue
+        const agencyRetainer = agencyBase;
+        let agencyProjInvoice = 0; for(const p of active){ if(p.left.length>0){ agencyProjInvoice += p.amount * (p.left.shift()||0); } }
+        for(let i=active.length-1;i>=0;i--){ if(active[i].left.length===0) active.splice(i,1); }
+        const beforeCap = agencyRetainer + agencyProjInvoice; let agencyAccrual = Math.min(agencyCap, beforeCap);
+        if(beforeCap>agencyCap){ const reduc=beforeCap-agencyCap; const scale=(agencyProjInvoice-reduc)/Math.max(1,agencyProjInvoice); agencyProjInvoice=Math.max(0,agencyProjInvoice*scale); agencyAccrual=agencyRetainer+agencyProjInvoice; }
 
-        const loanThis = (loanAmt>0 && monthIndex>=loanMonth) ? loanRepay : 0;
-        const marketing = mktBudget;
-        const ops = agencyOps;
+        // SaaS conversions
+        customers += (saasNewPlanned[m]||0); customers = Math.max(0, Math.round(customers - customers*churn));
+        const saasRecognized = customers * (arpaYear/12);
 
-        const preTaxProfit = inflow - (ops + marketing + loanThis + lhdnThis + sstThis + ongoingSST);
-        const corpTax = preTaxProfit>0 ? preTaxProfit * (corpTaxPct/100) : 0;
+        // SST and invoices
+        const agencyTaxable = agencyAccrual * taxableShare; const sstOngoing = agencyTaxable * sstPct; const agencyInvoice = agencyAccrual + sstOngoing;
 
-        const outflow = ops + marketing + loanThis + lhdnThis + sstThis + ongoingSST + corpTax;
-        const net = inflow - outflow;
-        cumCash += net;
+        // Cash in (AR applied) + SaaS prepaid (new sales)
+        arQAgency.push(agencyInvoice); const agencyCashIn = arQAgency.shift();
+        const saasCashNew = (saasNewPlanned[m]||0) * arpaYear; arQSaaS.push(saasCashNew); const saasCashIn = arQSaaS.shift();
+        const loanCash = (loanAmt>0 && (m+1)===loanMonth)? loanAmt*(1-loanFeePct) : 0;
+        const cashIn = agencyCashIn + saasCashIn + loanCash;
 
-        totalIn += inflow; totalOut += outflow;
+        // Loan repayment components (interest/principal)
+        let interestThis=0, principalThis=0, loanThis=0;
+        if(loanAmt>0 && (m+1)>=loanMonth){
+          interestThis = bal * r; loanThis = repay; principalThis = Math.max(0, loanThis - interestThis); bal = Math.max(0, bal - principalThis);
+        }
+
+        // Other expenses
+        const lhdnThis=(lhdnLeft>0)?Math.min(lhdnLeft,lhdnPer):0; lhdnLeft=Math.max(0,lhdnLeft-lhdnThis);
+        const sstCatchThis=(sstLeft>0)?Math.min(sstLeft,sstPer):0; sstLeft=Math.max(0,sstLeft-sstCatchThis);
+        const demoCosts = saasDemos * demoCost; const saasCommission = saasCashNew * commPct;
+        const projectVariable = agencyProjInvoice>0 && projNetMargin<1 ? Math.max(0, agencyProjInvoice*(1 - projNetMargin)) : 0;
+        const expenseAccrual = agencyOps + agencyMkt + saasMkt0 + demoCosts + saasCommission + loanThis + lhdnThis + sstCatchThis + projectVariable;
+        apQ.push(expenseAccrual); let cashOut = apQ.shift();
+
+        // Profit accrual for tax estimate (EBIT proxy)
+        const ebit = (agencyAccrual + saasRecognized) - (agencyOps + agencyMkt + saasMkt0 + lhdnThis + sstCatchThis + projectVariable);
+        ytdProfit += (ebit - 0); // before interest/tax
+        const annualizedProfit = (ytdProfit/(m+1))*12; const effRate = annualizedProfit>0 ? (smeTaxAnnual(annualizedProfit)/annualizedProfit) : 0; const corpTaxAccrual = Math.max(0, (ebit - interestThis) * effRate);
+        if(apQ.length>0){ apQ[apQ.length-1] += corpTaxAccrual; } else { cashOut += corpTaxAccrual; }
+
+        const net = cashIn - cashOut; cumCash += net; totalIn += cashIn; totalOut += cashOut;
+
+        // Ratios for the month
+        const preDebtCashflow = net + loanThis; // cash available for debt service
+        const dscr = loanThis>0 ? preDebtCashflow/loanThis : null;
+        const icr = interestThis>0 ? (ebit/interestThis) : null;
 
         rows.push({
-          label: labels[i], agencyRevenue, agencyProject, mrr, inflow,
-          ops, marketing, loanThis, lhdnThis, sstThis, ongoingSST, corpTax,
-          outflow, net, cumCash
+          label:labels[m], agencyRetainer:Math.round(agencyRetainer), agencyProjects:Math.round(agencyProjInvoice), saasRecognized:Math.round(saasRecognized),
+          agencyCashIn:Math.round(agencyCashIn), saasCashIn:Math.round(saasCashIn), loanCash:Math.round(loanCash), cashIn:Math.round(cashIn),
+          ops:Math.round(agencyOps), agencyMkt:Math.round(agencyMkt), saasMkt:Math.round(saasMkt0), saasDemoCosts:Math.round(demoCosts), saasCommission:Math.round(saasCommission), loanThis:Math.round(loanThis), lhdnThis:Math.round(lhdnThis), sstCatchThis:Math.round(sstCatchThis), sstOngoing:Math.round(sstOngoing), corpTaxAccrual:Math.round(corpTaxAccrual), cashOut:Math.round(cashOut), net:Math.round(net), cumCash:Math.round(cumCash),
+          agencyAccrual:Math.round(agencyAccrual), dscr:dscr, icr:icr, interestThis:Math.round(interestThis)
         });
       }
 
-      return { labels, rows, totals:{in:totalIn,out:totalOut, cash:rows.at(-1)?.cumCash??startCash} };
+      // Averages & ratios summary
+      const dscrVals = rows.map(r=>r.dscr).filter(x=>x!==null && isFinite(x));
+      const avgDSCR = dscrVals.length? (dscrVals.reduce((a,b)=>a+b,0)/dscrVals.length) : 0;
+      const collatCov = collateral>0 && loanAmt>0 ? (collateral/loanAmt) : 0;
+      const leverage = (loanAmt>0 && equity>0)? (loanAmt/equity) : 0;
+
+      return {labels, rows, totals:{in:totalIn,out:totalOut,cash:rows.at(-1)?.cumCash||startCash}, ratios:{avgDSCR, collatCov, leverage}};
     }
 
-    // ---------- Rendering ----------
-    let barChart,lineChart,stackedChart,pieChart;
+    // Readiness score
+    function readiness(){
+      const ids=['chkAudited','chkTaxPlan','chkPosCF','chkCCRIS','chkCollateral','chkPlan','chkCGC'];
+      let score=0; ids.forEach(id=>{ if(document.getElementById(id).checked) score+=5; });
+      const pct=Math.round((score/35)*100); const bar=document.getElementById('readinessBar'); bar.style.width=pct+'%';
+      document.getElementById('readinessText').textContent='Readiness: '+pct+'%';
+      let v='High risk'; if(pct>=85) v='Low risk'; else if(pct>=60) v='Moderate risk';
+      document.getElementById('readinessVerdict').textContent=v;
+    }
 
+    let barChart,lineChart,stackedChart,pieChart,dscrChart;
     function render(){
-      const res = simulate();
-      const labels = res.labels;
-      const inflows = res.rows.map(r=>r.inflow);
-      const outflows = res.rows.map(r=>r.outflow);
-      const cum = res.rows.map(r=>r.cumCash);
-      const agency = res.rows.map(r=>r.agencyRevenue + r.agencyProject);
-      const saas = res.rows.map(r=>r.mrr);
+      saveParams(); readiness();
+      const res=simulate(); const labels=res.labels; const inflows=res.rows.map(r=>r.cashIn); const outflows=res.rows.map(r=>r.cashOut); const cum=res.rows.map(r=>r.cumCash);
+      const mode=document.getElementById('revMode').value; let dsA, dsS;
+      if(mode==='cash'){ dsA=res.rows.map(r=>r.agencyCashIn); dsS=res.rows.map(r=>r.saasCashIn); } else { dsA=res.rows.map(r=>r.agencyAccrual); dsS=res.rows.map(r=>r.saasRecognized); }
 
-      // KPIs
-      document.getElementById('kpiIn').textContent = 'RM '+fmt(res.totals.in);
-      document.getElementById('kpiOut').textContent = 'RM '+fmt(res.totals.out);
-      document.getElementById('kpiCash').textContent = 'RM '+fmt(res.totals.cash);
+      document.getElementById('kpiIn').textContent='RM '+fmt(res.totals.in); document.getElementById('kpiOut').textContent='RM '+fmt(res.totals.out); document.getElementById('kpiCash').textContent='RM '+fmt(res.totals.cash); document.getElementById('kpiDSCR').textContent=(res.ratios.avgDSCR?res.ratios.avgDSCR.toFixed(2):'–');
 
-      // Table
-      const tbody = document.querySelector('#tbl tbody');
-      tbody.innerHTML = res.rows.map(r=>`
+      const tbody=document.querySelector('#tbl tbody'); tbody.innerHTML=res.rows.map(r=>`
         <tr>
           <td>${r.label}</td>
-          <td>${fmt(r.agencyRevenue)}</td>
-          <td>${fmt(r.agencyProject)}</td>
-          <td>${fmt(r.mrr)}</td>
-          <td>${fmt(r.inflow)}</td>
+          <td>${fmt(r.agencyRetainer)}</td>
+          <td>${fmt(r.agencyProjects)}</td>
+          <td>${fmt(r.saasRecognized)}</td>
+          <td>${fmt(r.agencyCashIn)}</td>
+          <td>${fmt(r.saasCashIn)}</td>
+          <td>${fmt(r.loanCash)}</td>
+          <td>${fmt(r.cashIn)}</td>
           <td>${fmt(r.ops)}</td>
-          <td>${fmt(r.marketing)}</td>
+          <td>${fmt(r.agencyMkt)}</td>
+          <td>${fmt(r.saasMkt)}</td>
+          <td>${fmt(r.saasDemoCosts)}</td>
+          <td>${fmt(r.saasCommission)}</td>
           <td>${fmt(r.loanThis)}</td>
           <td>${fmt(r.lhdnThis)}</td>
-          <td>${fmt(r.sstThis)}</td>
-          <td>${fmt(r.ongoingSST)}</td>
-          <td>${fmt(r.corpTax)}</td>
-          <td>${fmt(r.outflow)}</td>
+          <td>${fmt(r.sstCatchThis)}</td>
+          <td>${fmt(r.sstOngoing)}</td>
+          <td>${fmt(r.corpTaxAccrual)}</td>
+          <td>${fmt(r.cashOut)}</td>
           <td style="color:${r.net>=0?'#3ad29f':'#ff6b6b'}">${fmt(r.net)}</td>
           <td>${fmt(r.cumCash)}</td>
+          <td>${r.dscr? r.dscr.toFixed(2): '–'}</td>
+          <td>${r.icr? r.icr.toFixed(2): '–'}</td>
         </tr>`).join('');
 
-      // Charts
-      const barCtx = document.getElementById('barChart');
-      const lineCtx = document.getElementById('lineChart');
-      const stackedCtx = document.getElementById('stackedChart');
-      const pieCtx = document.getElementById('pieChart');
+      const barCtx=document.getElementById('barChart'); const lineCtx=document.getElementById('lineChart'); const stackedCtx=document.getElementById('stackedChart'); const pieCtx=document.getElementById('pieChart'); const dscrCtx=document.getElementById('dscrChart');
+      barChart&&barChart.destroy(); lineChart&&lineChart.destroy(); stackedChart&&stackedChart.destroy(); pieChart&&pieChart.destroy(); dscrChart&&dscrChart.destroy();
+      barChart=new Chart(barCtx,{type:'bar',data:{labels,datasets:[{label:'Cash In',data:inflows},{label:'Cash Out',data:outflows}]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{ticks:{color:'#c1d4ff'}},y:{ticks:{color:'#c1d4ff'}}}}});
+      lineChart=new Chart(lineCtx,{type:'line',data:{labels,datasets:[{label:'Cumulative Cash',data:cum}]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{ticks:{color:'#c1d4ff'}},y:{ticks:{color:'#c1d4ff'}}}}});
+      stackedChart=new Chart(stackedCtx,{type:'bar',data:{labels,datasets:[{label: mode==='cash'?'Agency Cash In':'Agency Revenue',data:dsA,stack:'rev'},{label: mode==='cash'?'SaaS Cash In':'SaaS (recognized)',data:dsS,stack:'rev'}]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{stacked:true,ticks:{color:'#c1d4ff'}},y:{stacked:true,ticks:{color:'#c1d4ff'}}}}});
+      const last=res.rows.at(-1)||{}; pieChart=new Chart(pieCtx,{type:'pie',data:{labels:['Ops','Agency Mkt','SaaS Mkt','SaaS Demo Costs','SaaS Commission','Loan','LHDN (catch-up)','SST (catch-up)','Ongoing SST','Corp Tax'],datasets:[{data:[last.ops,last.agencyMkt,last.saasMkt,(last.saasDemoCosts||0),last.saasCommission,last.loanThis,last.lhdnThis,last.sstCatchThis,last.sstOngoing,last.corpTaxAccrual]}]},options:{plugins:{legend:{labels:{color:'#e8eefc'}}}}});
+      dscrChart=new Chart(dscrCtx,{type:'line',data:{labels,datasets:[{label:'DSCR',data:res.rows.map(r=>r.dscr||null)},{label:'Target 1.20',data:new Array(labels.length).fill(1.2)}]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{ticks:{color:'#c1d4ff'}},y:{ticks:{color:'#c1d4ff'}}}}});
 
-      barChart && barChart.destroy();
-      lineChart && lineChart.destroy();
-      stackedChart && stackedChart.destroy();
-      pieChart && pieChart.destroy();
-
-      barChart = new Chart(barCtx,{type:'bar',data:{labels,datasets:[
-        {label:'Inflow', data:inflows},
-        {label:'Outflow', data:outflows}
-      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{ticks:{color:'#c1d4ff'}},y:{ticks:{color:'#c1d4ff'}}}}});
-
-      lineChart = new Chart(lineCtx,{type:'line',data:{labels,datasets:[
-        {label:'Cumulative Cash', data:cum}
-      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{ticks:{color:'#c1d4ff'}},y:{ticks:{color:'#c1d4ff'}}}}});
-
-      stackedChart = new Chart(stackedCtx,{type:'bar',data:{labels,datasets:[
-        {label:'Agency', data:agency, stack:'rev'},
-        {label:'SaaS', data:saas, stack:'rev'}
-      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e8eefc'}}},scales:{x:{stacked:true,ticks:{color:'#c1d4ff'}},y:{stacked:true,ticks:{color:'#c1d4ff'}}}}});
-
-      // Expense breakdown (latest month)
-      const last = res.rows.at(-1) || {};
-      pieChart = new Chart(pieCtx,{type:'pie',data:{labels:['Ops','Marketing','Loan','LHDN (catch-up)','SST (catch-up)','Ongoing SST','Corp Tax'],datasets:[{data:[last.ops,last.marketing,last.loanThis,last.lhdnThis,last.sstThis,last.ongoingSST,last.corpTax]}]},options:{plugins:{legend:{labels:{color:'#e8eefc'}}}}});
-
-      // CSV Download
-      const csvBtn = document.getElementById('csvBtn');
-      csvBtn.onclick = () => downloadCSV(res);
+      document.getElementById('csvBtn').onclick=()=>downloadCSV(res);
     }
 
     function downloadCSV(res){
-      const headers = ['Month','Agency Rev','Project Rev','SaaS Rev','Total In','Ops','Marketing','Loan Repay','LHDN Catch-up','SST Catch-up','Ongoing SST','Corp Tax','Total Out','Net','Cumulative Cash'];
-      const lines = [headers.join(',')].concat(res.rows.map(r=>[
-        r.label,r.agencyRevenue,r.agencyProject,r.mrr,r.inflow,r.ops,r.marketing,r.loanThis,r.lhdnThis,r.sstThis,r.ongoingSST,r.corpTax,r.outflow,r.net,r.cumCash
-      ].join(',')));
-      const blob = new Blob([lines.join('\n')],{type:'text/csv'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href=url; a.download='finance_simulation.csv'; a.click();
-      URL.revokeObjectURL(url);
+      const headers=['Month','Agency Retainer','Agency Projects','SaaS (recognized)','Agency Cash In','SaaS Cash In','Loan Cash','Total Cash In','Ops','Agency Mkt','SaaS Mkt','SaaS Demo Costs','SaaS Commission','Loan Repay','LHDN Catch-up','SST Catch-up','Ongoing SST','Corp Tax','Total Cash Out','Net','Cumulative Cash','DSCR','ICR'];
+      const lines=[headers.join(',')].concat(res.rows.map(r=>[r.label,r.agencyRetainer,r.agencyProjects,r.saasRecognized,r.agencyCashIn,r.saasCashIn,r.loanCash,r.cashIn,r.ops,r.agencyMkt,r.saasMkt,r.saasDemoCosts,r.saasCommission,r.loanThis,r.lhdnThis,r.sstCatchThis,r.sstOngoing,r.corpTaxAccrual,r.cashOut,r.net,r.cumCash,(r.dscr? r.dscr.toFixed(2):''),(r.icr? r.icr.toFixed(2):'')].join(',')));
+      const blob=new Blob([lines.join('
+')],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='finance_simulation_v5_bank_ready.csv'; a.click(); URL.revokeObjectURL(url);
     }
 
-    document.getElementById('runBtn').addEventListener('click',render);
+    function tests(){
+      const out=[]; const pm = amortizeMonthly(800000,4,6); out.push(['amortizeMonthly 800k@4%~6yrs', Math.round(pm)>12000 && Math.round(pm)<14000]);
+      out.push(['SME tax slab 150k', smeTaxAnnual(150000)===22500]);
+      const ms = parseMilestones6(); out.push(['milestones6 len & sum', ms.length===6 && Math.abs(ms.reduce((a,b)=>a+b,0)-1)<1e-6]);
+      document.getElementById('testlog').textContent = out.map(([n,ok])=>`${ok?'✅':'❌'} ${n}`).join('
+');
+    }
 
-    // Auto-run first render
+    document.getElementById('runBtn').addEventListener('click',()=>{ try{ render(); }catch(err){ console.error(err); alert('Error: '+err.message); }});
+    document.getElementById('resetBtn').addEventListener('click',()=>{ localStorage.removeItem('vs_ns_finance_v5'); location.reload(); });
+
+    loadParams();
+    tests();
     render();
   </script>
 </body>
